@@ -26,3 +26,7 @@ DATASET_CONFIGS:
 MODEL_CONFIGS:
     MODEL_NAME: SIMPLE-CNN          # Options: [SIMPLE-MLP, SIMPLE-CNN]
     NUM_CLASSES: 10
+
+ADDITIONAL_CONFIGS:                 # Normally used to pass configs to malicious clients
+    TARGET_MODEL: ./temp/mal_weights/malicious_model_cifar10.pt
+	
