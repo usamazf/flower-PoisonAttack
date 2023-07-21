@@ -29,4 +29,3 @@ MODEL_CONFIGS:
 
 ADDITIONAL_CONFIGS:                 # Normally used to pass configs to malicious clients
     TARGET_MODEL: ./temp/mal_weights/malicious_model_cifar10.pt
-	
