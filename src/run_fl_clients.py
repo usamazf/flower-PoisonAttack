@@ -1,33 +1,14 @@
 from multiprocessing import Process
 
 import argparse
-# import timeit
 
 import torch
-# from torch.utils.data import Dataset
-
 import flwr as fl
-# from flwr.client import Client
-
-# from flwr.common import (
-#     Code,
-#     EvaluateIns,
-#     EvaluateRes,
-#     FitIns,
-#     FitRes,
-#     GetParametersIns,
-#     GetParametersRes,
-#     Status,
-#     ndarrays_to_parameters,
-#     parameters_to_ndarrays,
-# )
 
 import client
 import models
 import configs
 import datasets
-# import modules
-
 
 def client_runner(
         client_id: int,
