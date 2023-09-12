@@ -50,7 +50,7 @@ python src/run_fl_clients.py \
     --server_address=$SERVER_ADDRESS \
     --config_file="path/to/config/file.yaml" \
     --log_host=$LOG_SERVER_ADDRESS \
-    --client_type=type_of_client_to_run[HONEST or MPAF or RAND] \
+    --client_type=type_of_client_to_run[HONEST or MPAF or RAND or IRAND] \
     --total_clients=total_clients_in_the_federation \
     --num_clients=number_of_client_instances_to_run \
     --start_cid=starting_client_id_of_these_set_of_clients
