@@ -1,19 +1,20 @@
 """A function to load and split the desired dataset among clients."""
 
 def load_data(dataset_name: str, 
-              dataset_path: str):
+              dataset_path: str, 
+              dataset_down: bool):
     
     assert dataset_name in ["MNIST", "CIFAR-10", "EMNIST"], f"Invalid dataset {dataset_name} requested."
 
     if dataset_name == "MNIST":
         from .dt_mnist import load_mnist
-        return load_mnist(data_root=dataset_path)
+        return load_mnist(data_root=dataset_path, download=dataset_down)
     elif dataset_name == "EMNIST":
         from .dt_emnist import load_emnist
-        return load_emnist(data_root=dataset_path)
+        return load_emnist(data_root=dataset_path, download=dataset_down)
     elif dataset_name == "CIFAR-10":
         from .dt_cifar10 import load_cifar10
-        return load_cifar10(data_root=dataset_path)
+        return load_cifar10(data_root=dataset_path, download=dataset_down)
     else:
         raise Exception(f"Invalid dataset {dataset_name} requested.")
 
@@ -28,7 +29,8 @@ def load_and_fetch_split(
     # load the dataset requested
     trainset, testset \
         = load_data(dataset_name=dataset_conf["DATASET_NAME"],
-                    dataset_path=dataset_conf["DATASET_PATH"]
+                    dataset_path=dataset_conf["DATASET_PATH"],
+                    dataset_down=dataset_conf["DATASET_DOWN"]
                    )
 
     # split the dataset if requested

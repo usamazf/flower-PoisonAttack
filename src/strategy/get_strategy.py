@@ -10,12 +10,14 @@ import flwr as fl
 import sys
 import os
 sys.path.append(os.path.abspath("src"))
-import datasets
+import data_handler
 import models
 import modules
 
 
-def get_strategy(user_configs: dict):
+def get_strategy(
+        user_configs: dict,
+    ):
     # Check what device to use on 
     # server side to run the computations
     run_device = ("cuda" if torch.cuda.is_available() else "cpu") \
@@ -27,9 +29,10 @@ def get_strategy(user_configs: dict):
     eval_fn = None
     if user_configs["SERVER_CONFIGS"]["EVALUATE_SERVER"]:
         # Load evaluation data
-        _, testset = datasets.load_data(
+        _, testset = data_handler.load_data(
             dataset_name=user_configs["DATASET_CONFIGS"]["DATASET_NAME"],
-            dataset_path=user_configs["DATASET_CONFIGS"]["DATASET_PATH"]
+            dataset_path=user_configs["DATASET_CONFIGS"]["DATASET_PATH"],
+            dataset_down=user_configs["DATASET_CONFIGS"]["DATASET_DOWN"]
         )
 
         eval_fn = get_evaluate_fn(
@@ -57,6 +60,7 @@ def get_strategy(user_configs: dict):
             min_available_clients=user_configs["SERVER_CONFIGS"]["MIN_NUM_CLIENTS"],
             evaluate_fn=eval_fn,
             on_fit_config_fn=fit_config_fn,
+            fit_metrics_aggregation_fn=modules.aggregate_fit_metrics,
         )
         return stratgy
     else:
@@ -72,7 +76,7 @@ def get_fit_config_fn(
     def fit_config(server_round: int) -> Dict[str, fl.common.Scalar]:
         """Return a configuration with static batch size and (local) epochs."""
         config: Dict[str, fl.common.Scalar] = {
-            "epoch_global": str(server_round),
+            "server_round": str(server_round),
             "epochs": str(local_epochs),
             "batch_size": str(local_batchsize),
             "learning_rate": str(learning_rate),

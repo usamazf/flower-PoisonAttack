@@ -93,6 +93,7 @@ class FederatedAverage(fl.server.strategy.Strategy):
         server_round: int,
         results: List[Tuple[ClientProxy, FitRes]],
         failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
+        selected: Optional[List[int]] = None,
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         """Aggregate fit results using weighted average."""
         if not results:
@@ -102,17 +103,18 @@ class FederatedAverage(fl.server.strategy.Strategy):
             return None, {}
 
         # Convert results
-        weights_results = [
-            (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
-            for _, fit_res in results
-        ]
-        parameters_aggregated = ndarrays_to_parameters(aggregate(weights_results))
+        weights_results = []
+        for indx, (_, fit_res) in enumerate(results):
+            if selected is None:
+                weights_results.append((parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples))
+            elif indx in selected:
+                weights_results.append((parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples))
+        parameters_aggregated = ndarrays_to_parameters(aggregate(weights_results)) if len(weights_results) > 0 else None
 
-        # Aggregate custom metrics if aggregation fn was provided
         metrics_aggregated = {}
         if self.fit_metrics_aggregation_fn:
             fit_metrics = [(res.num_examples, res.metrics) for _, res in results]
-            metrics_aggregated = self.fit_metrics_aggregation_fn(fit_metrics)
+            metrics_aggregated = self.fit_metrics_aggregation_fn(fit_metrics, selected)
         elif server_round == 1:  # Only log this warning once
             log(WARNING, "No fit_metrics_aggregation_fn provided")
 
@@ -188,6 +190,7 @@ class FederatedAverage(fl.server.strategy.Strategy):
         if eval_res is None:
             return None
         loss, metrics = eval_res
+
         return loss, metrics
 
     def num_fit_clients(self, num_available_clients: int) -> Tuple[int, int]:

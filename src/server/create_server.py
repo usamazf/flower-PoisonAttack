@@ -7,6 +7,7 @@ def create_server(
         client_manager: ClientManager,
         aggregate_strategy: Strategy,
         user_configs: dict,
+        experiment_manager = None,
     ):
     """Function to create the appropriat FL server instance."""
     
@@ -14,6 +15,10 @@ def create_server(
 
     if server_type == "NORMAL":
         from .servers.normal_server import NormalServer
-        return NormalServer(client_manager=client_manager, strategy=aggregate_strategy)
+        return NormalServer(
+            client_manager=client_manager,
+            strategy=aggregate_strategy,
+            experiment_manager=experiment_manager,
+        )
     else:
         raise Exception(f"Invalid server {server_type} requested.")

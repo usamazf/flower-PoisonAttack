@@ -8,7 +8,7 @@ import flwr as fl
 import client
 import models
 import configs
-import datasets
+import data_handler
 
 def client_runner(
         client_id: int,
@@ -16,6 +16,7 @@ def client_runner(
         client_type: str,
         config_file: str,
         server_address: str,
+        max_gpus: int,
         log_host: str,
     ):
     # Configure logger
@@ -27,13 +28,13 @@ def client_runner(
     # Check for runnable device
     local_device = user_configs["CLIENT_CONFIGS"]["RUN_DEVICE"]
     if local_device == "auto":
-        local_device = "cuda" if torch.cuda.is_available() else "cpu"
+        local_device = f"cuda:{int(client_id%max_gpus)}" if torch.cuda.is_available() else "cpu"
     
     # Load model and data
     model = models.load_model(model_configs=user_configs["MODEL_CONFIGS"])
     model.to(local_device)
     
-    trainset, testset = datasets.load_and_fetch_split(
+    trainset, testset = data_handler.load_and_fetch_split(
         client_id=client_id,
         n_clients=total_clients,
         dataset_conf=user_configs["DATASET_CONFIGS"],
@@ -47,7 +48,7 @@ def client_runner(
         trainset = trainset[0],
         testset = testset,
         device = local_device,
-        configs = user_configs["ADDITIONAL_CONFIGS"],
+        configs = user_configs["EXPERIMENT_CONFIGS"],
     )
     #try:
     fl.client.start_client(server_address=server_address, client=custom_client)
@@ -99,6 +100,12 @@ def main() -> None:
         help="Additional configuration file to use (no default)",
     )
     parser.add_argument(
+        "--max_gpus",
+        type=int,
+        default=1,
+        help="Maximum number of available GPUs (default: 1)",
+    )
+    parser.add_argument(
         "--log_host", type=str, help="Logserver address (no default)",
     )
     args = parser.parse_args()
@@ -110,6 +117,7 @@ def main() -> None:
             args.client_type,
             args.config_file,
             args.server_address,
+            args.max_gpus,
             args.log_host,
         )))
         client_queue[-1].start()

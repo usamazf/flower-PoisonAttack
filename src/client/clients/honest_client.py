@@ -3,7 +3,6 @@
 import timeit
 
 import torch
-import torch.nn as nn
 from torch.utils.data import Dataset
 
 from flwr.client import Client
@@ -28,7 +27,7 @@ class HonestClient(Client):
     """
     def __init__(
             self, 
-            client_id: str,
+            client_id: int,
             local_model: torch.nn.Module,
             trainset: Dataset,
             testset: Dataset,
@@ -46,6 +45,11 @@ class HonestClient(Client):
     def client_id(self):
         """Returns current client's id."""
         return self._client_id
+
+    @property
+    def client_type(self):
+        """Returns current client's type."""
+        return "HONEST"
     
     def get_parameters(self, ins: GetParametersIns) -> GetParametersRes:
         """Module to fetch model parameters of current client."""
@@ -80,11 +84,9 @@ class HonestClient(Client):
 
         # Train model
         trainloader = torch.utils.data.DataLoader(
-            self._trainset, batch_size=batch_size, shuffle=True
+            self._trainset, batch_size=batch_size, shuffle=True, drop_last=True
         )
         
-        # criterion = nn.CrossEntropyLoss()
-        # optimizer = torch.optim.SGD(self._local_model.parameters(), lr=learning_rate, momentum=0.9)
         criterion = modules.get_criterion(
             criterion_str=criterion_str
         )
@@ -111,14 +113,41 @@ class HonestClient(Client):
         parameters_updated = ndarrays_to_parameters(weights_updated)
         fit_duration = timeit.default_timer() - fit_begin
 
+        # Perform necessary evaluations
+        ts_loss, ts_accuracy, tr_loss, tr_accuracy = self.perform_evaluations(trainloader=None, testloader=None)
+
         # Build and return response
         status = Status(code=Code.OK, message="Success")
         return FitRes(
             status=status,
             parameters=parameters_updated,
             num_examples=len(trainloader),
-            metrics={"fit_duration": fit_duration},
+            metrics={
+                "client_id": int(self.client_id),
+                "fit_duration": fit_duration,
+                "train_accu": tr_accuracy,
+                "train_loss": tr_loss,
+                "test_accu": ts_accuracy,
+                "test_loss": ts_loss,
+                "attacking": False,
+                "client_type": self.client_type,
+            },
         )
+
+    def perform_evaluations(self, trainloader=None, testloader=None):
+        # Check if data loaders need to be created
+        if trainloader is None:
+            trainloader = torch.utils.data.DataLoader(self._trainset, batch_size=32, shuffle=False)
+        
+        if testloader is None:
+            testloader = torch.utils.data.DataLoader(self._testset, batch_size=32, shuffle=False)
+        
+        # Perform necessary evaluations
+        tr_loss, tr_accuracy = modules.evaluate(self._local_model, trainloader, device=self._device)
+        ts_loss, ts_accuracy = modules.evaluate(self._local_model, testloader, device=self._device)
+        
+        # Return evaluation stats
+        return tr_loss, tr_accuracy, ts_loss, ts_accuracy
 
     def evaluate(self, ins: EvaluateIns) -> EvaluateRes:
         print(f"[Client {self.client_id}] evaluate, config: {ins.config}")

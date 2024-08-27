@@ -6,7 +6,7 @@ import torchvision
 import torchvision.transforms as transforms
 
 
-def load_emnist(data_root) -> Tuple[torchvision.datasets.VisionDataset, torchvision.datasets.VisionDataset]:
+def load_mnist(data_root, download) -> Tuple[torchvision.datasets.VisionDataset, torchvision.datasets.VisionDataset]:
     """Load MNIST (training and test set)."""
     
     # Define the transform for the data.
@@ -15,11 +15,11 @@ def load_emnist(data_root) -> Tuple[torchvision.datasets.VisionDataset, torchvis
     )
 
     # Initialize Datasets. MNIST will automatically download if not present
-    trainset = torchvision.datasets.EMNIST(
-        root=data_root, train=True, download=True, transform=transform
+    trainset = torchvision.datasets.MNIST(
+        root=data_root, train=True, download=download, transform=transform
     )
-    testset = torchvision.datasets.EMNIST(
-        root=data_root, train=False, download=True, transform=transform
+    testset = torchvision.datasets.MNIST(
+        root=data_root, train=False, download=download, transform=transform
     )
 
     # Return the datasets

@@ -6,7 +6,7 @@ import torchvision
 import torchvision.transforms as transforms
 
 
-def load_cifar10(data_root) -> Tuple[torchvision.datasets.VisionDataset, torchvision.datasets.VisionDataset]:
+def load_cifar10(data_root, download) -> Tuple[torchvision.datasets.VisionDataset, torchvision.datasets.VisionDataset]:
     """Load CIFAR-10 (training and test set)."""
     
     # Define the transform for the data.
@@ -17,10 +17,10 @@ def load_cifar10(data_root) -> Tuple[torchvision.datasets.VisionDataset, torchvi
     
     # Initialize Datasets. CIFAR-10 will automatically download if not present
     trainset = torchvision.datasets.CIFAR10(
-        root=data_root, train=True, download=True, transform=transform
+        root=data_root, train=True, download=download, transform=transform
     )
     testset = torchvision.datasets.CIFAR10(
-        root=data_root, train=False, download=True, transform=transform
+        root=data_root, train=False, download=download, transform=transform
     )
     
     # Return the datasets

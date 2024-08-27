@@ -10,6 +10,8 @@ from flwr.common.logger import log
 from flwr.server.history import History
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.server import fit_clients
+from flwr.server.client_manager import ClientManager
+from flwr.server.strategy import Strategy
 
 from flwr.common import (
     FitRes,
@@ -22,6 +24,18 @@ FitResultsAndFailures = Tuple[
 ]
 
 class NormalServer(fl.server.Server):
+    def __init__(
+        self, 
+        *, 
+        client_manager: ClientManager, 
+        experiment_manager = None,
+        strategy: Optional[Strategy] = None,
+        user_configs: Optional[Dict] = None,
+    ) -> None:
+        super().__init__(client_manager=client_manager, strategy=strategy)
+        self.experiment_manager = experiment_manager
+        self.user_configs = user_configs
+
     def fit_round(
         self,
         server_round: int,
@@ -41,7 +55,7 @@ class NormalServer(fl.server.Server):
             log(INFO, "fit_round %s: no clients selected, cancel", server_round)
             return None
         log(
-            DEBUG,
+            INFO,
             "fit_round %s: strategy sampled %s clients (out of %s)",
             server_round,
             len(client_instructions),
@@ -53,9 +67,10 @@ class NormalServer(fl.server.Server):
             client_instructions=client_instructions,
             max_workers=self.max_workers,
             timeout=timeout,
+            group_id=server_round,
         )
         log(
-            DEBUG,
+            INFO,
             "fit_round %s received %s results and %s failures",
             server_round,
             len(results),
@@ -69,17 +84,18 @@ class NormalServer(fl.server.Server):
         ] = self.strategy.aggregate_fit(server_round, results, failures)
 
         parameters_aggregated, metrics_aggregated = aggregated_result
+
         return parameters_aggregated, metrics_aggregated, (results, failures)
-    
+
     # pylint: disable=too-many-locals
-    def fit(self, num_rounds: int, timeout: Optional[float]) -> History:
+    def fit(self, num_rounds: int, timeout: Optional[float]) -> Tuple[History, float]:
         """Run federated averaging for a number of rounds."""
         history = History()
 
         # Initialize parameters
-        log(INFO, "Initializing global parameters")
-        self.parameters = self._get_initial_parameters(timeout=timeout)
-        log(INFO, "Evaluating initial parameters")
+        log(INFO, "[INIT]")
+        self.parameters = self._get_initial_parameters(server_round=0, timeout=timeout)
+        log(INFO, "Starting evaluation of initial global parameters")
         res = self.strategy.evaluate(0, parameters=self.parameters)
         if res is not None:
             log(
@@ -90,12 +106,15 @@ class NormalServer(fl.server.Server):
             )
             history.add_loss_centralized(server_round=0, loss=res[0])
             history.add_metrics_centralized(server_round=0, metrics=res[1])
+        else:
+            log(INFO, "Evaluation returned no results (`None`)")
 
         # Run federated learning for num_rounds
-        log(INFO, "FL starting")
         start_time = timeit.default_timer()
 
         for current_round in range(1, num_rounds + 1):
+            log(INFO, "")
+            log(INFO, "[ROUND %s]", current_round)
             # Train model and replace previous global model
             res_fit = self.fit_round(
                 server_round=current_round,
@@ -108,6 +127,7 @@ class NormalServer(fl.server.Server):
                 history.add_metrics_distributed_fit(
                     server_round=current_round, metrics=fit_metrics
                 )
+                if self.experiment_manager is not None: self.experiment_manager.log(fit_metrics, nested=True)
 
             # Evaluate model using strategy implementation
             res_cen = self.strategy.evaluate(current_round, parameters=self.parameters)
@@ -126,6 +146,13 @@ class NormalServer(fl.server.Server):
                     server_round=current_round, metrics=metrics_cen
                 )
 
+                if self.experiment_manager is not None:                     
+                    logging_metrics = {
+                        "centralized_loss": loss_cen,
+                        "centralized_accu": metrics_cen["accuracy"],
+                    }
+                    self.experiment_manager.log(logging_metrics, nested=True)
+
             # Evaluate model on a sample of available clients
             res_fed = self.evaluate_round(server_round=current_round, timeout=timeout)
             if res_fed is not None:
@@ -141,5 +168,4 @@ class NormalServer(fl.server.Server):
         # Bookkeeping
         end_time = timeit.default_timer()
         elapsed = end_time - start_time
-        log(INFO, "FL finished in %s", elapsed)
-        return history
+        return history, elapsed

@@ -54,13 +54,21 @@ class CustomSubset(Dataset):
     def __init__(self, dataset, indices, labels=None):
         self.dataset = dataset
         self.indices = indices
-        if not labels:
-            targets = np.array(self.dataset.targets)[indices]
+        if labels is None:
+            if hasattr(self.dataset, 'targets'):
+                targets = np.array(self.dataset.targets)[indices]
+            elif hasattr(self.dataset, 'labels'):
+                targets = np.array(self.dataset.labels)[indices]
+            else:
+                # no targets or labels attribute in
+                # the given dataset raise exception
+                raise Exception("Dataset has no attribute targets or labels")
             self.targets = torch.tensor(targets.copy()).long()
-            # original labels
-            self.oTargets = targets
         else:
             self.targets = torch.tensor(labels).long()
+
+        # original labels
+        self.oTargets = self.targets.detach().clone()
    
     def __getitem__(self, idx):
         data = self.dataset[self.indices[idx]][0]
@@ -132,7 +140,7 @@ def split_dirichlet(labels, n_workers, alpha, double_stochstic=True):
 
     worker_idcs = [np.concatenate(idcs) for idcs in worker_idcs]
 
-    print_split(worker_idcs, labels)
+    # print_split(worker_idcs, labels)
   
     return worker_idcs
 
@@ -175,9 +183,9 @@ def split_data(
     label_counts = [np.bincount(np.array(train_data.targets)[i], minlength=10) for i in subset_idx]
     
     # Get actual worker data
-    #worker_data = [IdxSubset(train_data, subset_idx[i]) for i in range(n_clients)]
-    print(f"Current Worker Split: {label_counts[client_id]}\n")
-    worker_data = IdxSubset(train_data, subset_idx[client_id])
+    # worker_data = [IdxSubset(train_data, subset_idx[i]) for i in range(n_clients)]
+    # print(f"Current Worker Split: {label_counts[client_id]}\n")
+    worker_data = CustomSubset(train_data, subset_idx[client_id])
 
     # Return worker data splits
     return worker_data, label_counts[client_id]

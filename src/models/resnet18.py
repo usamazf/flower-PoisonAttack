@@ -1,27 +1,19 @@
-"""Implementation of a simple multilayer perceptron network."""
+"""Implementation of a ResNet-18 neural network for 3."""
 
 from collections import OrderedDict
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
+from torchvision.models.resnet import ResNet, BasicBlock
 
 import flwr as fl
 
-class Net(nn.Module):
+class Net(ResNet):
     """Multilayer percenptron (MLP) network."""
     def __init__(self, num_classes) -> None:
-        super(Net, self).__init__()
-        self.fc1 = nn.Linear(784, 24)
-        self.fc2 = nn.Linear(24, num_classes)
+        super(Net, self).__init__(block=BasicBlock, layers=[2,2,2,2], num_classes=num_classes)
         self._num_classes = num_classes
-
-    def forward(self, x: Tensor) -> Tensor:
-        x = torch.flatten(x, 1)
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
 
     def get_weights(self) -> fl.common.NDArrays:
         """Get model weights as a list of NumPy ndarrays."""

@@ -19,7 +19,7 @@ from flwr.common import (
 from .honest_client import HonestClient
 
 
-class Malicious_RandomUpdate(HonestClient):
+class Malicious_IntermediateRandomUpdate(HonestClient):
     """Represents an honest client.
     Attributes:
 
@@ -46,16 +46,18 @@ class Malicious_RandomUpdate(HonestClient):
     @property
     def client_type(self):
         """Returns current client's type."""
-        return "RAND"
+        return "IRAND"
 
     def fit(self, ins: FitIns) -> FitRes:
         print(f"[Client {self.client_id}] fit, config: {ins.config}")
 
-        # Don't perform attack until specific round
+        # Don't perform attack until specific round, even
+        # then perform with a specified probability.
         server_round = int(ins.config["server_round"])
-        if (server_round < self.attack_config["ATTACK_ROUND"]):
+        attack = np.random.random() >= self.attack_config["ATTACK_RATIO"]
+        if (server_round < self.attack_config["ATTACK_ROUND"]) or not attack:
             return super().fit(ins=ins)
-        
+
         # Get training config
         local_epochs = int(ins.config["epochs"])
         batch_size = int(ins.config["batch_size"])

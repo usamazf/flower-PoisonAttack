@@ -14,7 +14,8 @@ def train(model,
     """Train the model."""
     # Define loss and optimizer
     print(f"Training {epochs} epoch(s) w/ {len(trainloader)} batches each")
-
+    
+    model.train()
     # Train the model
     for epoch in range(epochs):  # loop over the dataset multiple times
         running_loss = 0.0

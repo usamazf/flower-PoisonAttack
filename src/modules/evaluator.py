@@ -9,20 +9,22 @@ def evaluate(
         model,
         testloader: torch.utils.data.DataLoader,
         device: str,
+        criterion = None,
     ) -> Tuple[float, float]:
     
     """Validate the model on the entire test set."""
-    criterion = nn.CrossEntropyLoss()
+    if criterion is None: criterion = nn.CrossEntropyLoss()
     correct = 0
     total = 0
     loss = 0.0
+    model.eval()
     with torch.no_grad():
-        for data in testloader:
-            images, labels = data[0].to(device), data[1].to(device)
-            outputs = model(images)
-            loss += criterion(outputs, labels).item()
+        for data, target in testloader:
+            data, target = data.to(device), target.to(device)
+            outputs = model(data)
+            loss += criterion(outputs, target).item() * target.size(0)
             _, predicted = torch.max(outputs.data, 1)  
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+            total += target.size(0)
+            correct += (predicted == target).sum().item()
     accuracy = correct / total
     return loss, accuracy

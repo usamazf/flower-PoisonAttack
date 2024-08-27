@@ -5,75 +5,63 @@ import timeit
 import torch
 from torch.utils.data import Dataset
 
-from flwr.client import Client
+from typing import Optional, Dict
 from flwr.common import (
     Code,
-    EvaluateIns,
-    EvaluateRes,
     FitIns,
     FitRes,
-    GetParametersIns,
-    GetParametersRes,
     Status,
     ndarrays_to_parameters,
     parameters_to_ndarrays,
 )
-import modules
 
-class Malicious_ScaledTarget(Client):
+from .honest_client import HonestClient
+
+class Malicious_ScaledTarget(HonestClient):
     """Represents an honest client.
     Attributes:
 
     """
     def __init__(
             self, 
-            client_id: str,
+            client_id: int,
             local_model: torch.nn.Module,
             trainset: Dataset,
             testset: Dataset,
             device: str,
-            pretrained_model: str,
+            attack_config: Optional[Dict] = None,
             ) -> None:
         """Initializes a new honest client."""
-        super().__init__()
-        self._client_id = client_id
-        self._local_model = local_model
-        self._trainset = trainset
-        self._testset = testset
-        self._device = device
-        self.pretrained_weights = torch.load(pretrained_model)
+        super().__init__(
+            client_id=client_id,
+            local_model=local_model,
+            trainset=trainset,
+            testset=testset,
+            device=device
+        )
+        self.attack_config = attack_config
+        self.pretrained_weights = torch.load(self.attack_config["TARGET_MODEL"])
 
     @property
-    def client_id(self):
-        """Returns current client's id."""
-        return self._client_id
-    
-    def get_parameters(self, ins: GetParametersIns) -> GetParametersRes:
-        """Module to fetch model parameters of current client."""
-        print(f"[Client {self.client_id}] get_parameters, config: {ins.config}")
-
-        #random_weights = [np.random.rand(*nd_array.shape) for nd_array in self._local_model.get_weights()]
-        parameters = ndarrays_to_parameters(self.pretrained_weights)
-        
-        # Build and return response
-        status = Status(code=Code.OK, message="Success")
-        return GetParametersRes(
-            status=status,
-            parameters=parameters
-        )
-
+    def client_type(self):
+        """Returns current client's type."""
+        return "MPAF"
 
     def fit(self, ins: FitIns) -> FitRes:
         print(f"[Client {self.client_id}] fit, config: {ins.config}")
 
-        weights = parameters_to_ndarrays(ins.parameters)
-        config = ins.config
-        fit_begin = timeit.default_timer()
+        # Don't perform attack until specific round
+        server_round = int(ins.config["server_round"])
+        if (server_round < self.attack_config["ATTACK_ROUND"]):
+            return super().fit(ins=ins)
 
         # Get training config
-        local_epochs = int(config["epochs"])
-        batch_size = int(config["batch_size"])
+        local_epochs = int(ins.config["epochs"])
+        batch_size = int(ins.config["batch_size"])
         learning_rate = 0.01 #float(config["learning_rate"])
+        
+        weights = parameters_to_ndarrays(ins.parameters)
+        fit_begin = timeit.default_timer()
         
         # Set model parameters
         self._local_model.set_weights(weights)
@@ -82,35 +70,23 @@ class Malicious_ScaledTarget(Client):
         parameters_updated = ndarrays_to_parameters(self.pretrained_weights)
         fit_duration = timeit.default_timer() - fit_begin
 
+        # Perform necessary evaluations
+        ts_loss, ts_accuracy, tr_loss, tr_accuracy = self.perform_evaluations(trainloader=None, testloader=None)
+
         # Build and return response
         status = Status(code=Code.OK, message="Success")
         return FitRes(
             status=status,
             parameters=parameters_updated,
             num_examples=100_000,
-            metrics={"fit_duration": fit_duration},
-        )
-
-    def evaluate(self, ins: EvaluateIns) -> EvaluateRes:
-        print(f"[Client {self.client_id}] evaluate, config: {ins.config}")
-
-        weights = parameters_to_ndarrays(ins.parameters)
-
-        # Use provided weights to update the local model
-        self._local_model.set_weights(weights)
-
-        # Evaluate the updated model on the local dataset
-        testloader = torch.utils.data.DataLoader(
-            self._testset, batch_size=32, shuffle=False
-        )
-        loss, accuracy = modules.evaluate(self._local_model, testloader, device=self._device)
-        
-        # Build and return response
-        status = Status(code=Code.OK, message="Success")
-        return EvaluateRes(
-            status=status,
-            loss=float(loss),
-            num_examples=len(testloader),
-            metrics={"accuracy": float(accuracy),
-                     "loss": float(loss)},
+            metrics={
+                "client_id": int(self.client_id),
+                "fit_duration": fit_duration,
+                "train_accu": tr_accuracy,
+                "train_loss": tr_loss,
+                "test_accu": ts_accuracy,
+                "test_loss": ts_loss,
+                "attacking": True,
+                "client_type": self.client_type,
+            },
         )
