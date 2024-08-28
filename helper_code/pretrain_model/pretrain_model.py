@@ -4,24 +4,22 @@
 #                                                                             #
 #-----------------------------------------------------------------------------#
 
-import argparse
-import torch
-import torch.optim as optim
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
-import copy
 
-import sys
+import argparse
+import copy
 import os
+import sys
+
+import torch
+from torch.utils.data import DataLoader
+
 sys.path.append(os.path.abspath("src"))
 
-import models
 import configs
 import data_handler
+import models
 import modules
+
 
 def mainpulate_data(tr_data, ts_data, change_params):
     """Perform some sort of data manipulation to create a specific target model."""
