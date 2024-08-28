@@ -26,7 +26,7 @@ class Net(nn.Module):
             nn.MaxPool2d(kernel_size = 2, stride = 2)
         )
         self.full_layers = nn.Sequential(
-            nn.Linear(400, 120),
+            nn.Linear(256, 120),
             nn.ReLU(),
             nn.Linear(120, 84),
             nn.ReLU(),
@@ -39,7 +39,7 @@ class Net(nn.Module):
         """Compute forward pass."""
         out = self.conv_layer1(x)
         out = self.conv_layer2(out)
-        out = out.view(-1, 16 * 5 * 5)
+        out = out.view(-1, 16 * 4 * 4)
         out = self.full_layers(out)
         return out
 

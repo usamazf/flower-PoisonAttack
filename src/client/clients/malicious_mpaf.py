@@ -40,7 +40,7 @@ class Malicious_ScaledTarget(HonestClient):
             device=device
         )
         self.attack_config = attack_config
-        self.pretrained_weights = torch.load(self.attack_config["TARGET_MODEL"])
+        self.pretrained_weights = torch.load(self.attack_config["MPAF_CONFIG"]["TARGET_MODEL"])
 
     @property
     def client_type(self):
@@ -78,7 +78,7 @@ class Malicious_ScaledTarget(HonestClient):
         return FitRes(
             status=status,
             parameters=parameters_updated,
-            num_examples=100_000,
+            num_examples=self.attack_config["MPAF_CONFIG"]["SCALE_FACTOR"],
             metrics={
                 "client_id": int(self.client_id),
                 "fit_duration": fit_duration,

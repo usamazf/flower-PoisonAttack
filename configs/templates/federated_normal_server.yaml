@@ -24,6 +24,8 @@ DATASET_CONFIGS:
     DATASET_DOWN: False
     SPLIT: True
     DIRICHLET_ALPHA: 100.0
+    WORKER_DATA: 5000               # These two options are exclusive of dirichlet data                
+    CLASSES_PER_WORKER: 0           # split, and perform sampling by replacement.
     RANDOM_SEED: 333
 
 MODEL_CONFIGS:
@@ -39,20 +41,32 @@ OUTPUT_CONFIGS:
 
 EXPERIMENT_CONFIGS:                 # Normally used to pass configs to malicious clients
     MAL_CLIENT_FRAC: 0.0
-    MAL_CLIENT_TYPE: RAND           # Options: [RAND, IRAND, MPAF, FLIP]
+    MAL_CLIENT_TYPE: RAND           # Options: [RAND, IRAND, MPAF, FLIP, BACK, NORM]
     MAL_HYPER_PARAM:
         # Common malicious attack configs
         ATTACK_ROUND: 3             # Rounds after which to start the malicious attack
-        
-        # IRAN specific attack configs
-        ATTACK_RATIO: 0.5
+
+        # IRAND specific attack configs
+        IRAND_CONFIG:
+            ATTACK_RATIO: 0.5
         
         # MPAF specific attack configs
-        TARGET_MODEL: ./temp/mal_weights/malicious_model_mnist.pt
+        MPAF_CONFIG:
+            TARGET_MODEL: ./temp/mal_weights/malicious_model_mnist.pt
+            SCALE_FACTOR: 1_000_000
 
         # FLIP specific attack configs
         FLIP_CONFIG:
-            -   SOURCE_LABEL: 0
-                TARGET_LABEL: 8
-            -   SOURCE_LABEL: 8
-                TARGET_LABEL: 0
+            LOCAL_EPOCHS: 5
+            TARGETS:
+                -   SOURCE_LABEL: 0
+                    TARGET_LABEL: 8
+                -   SOURCE_LABEL: 8
+                    TARGET_LABEL: 0
+        
+        # Backdoor specific attack configs
+        BACKDOOR_CONFIG:
+            LOCAL_EPOCHS: 5
+            TARGETS:
+                -   SOURCE_LABEL: 0
+                    TARGET_LABEL: 8

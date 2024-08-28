@@ -5,11 +5,10 @@ import argparse
 from typing import List, Tuple, Union
 
 import numpy as np
-
 import flwr as fl
 from flwr.server.client_manager import SimpleClientManager
 from flwr.server.client_proxy import ClientProxy
-from flwr.common import FitRes
+from flwr.common import FitRes, parameters_to_ndarrays
 
 FitResultsAndFailures = Tuple[
     List[Tuple[ClientProxy, FitRes]],
@@ -73,10 +72,19 @@ def main() -> None:
     )
 
     # Save logging results to disk
+    print("Saving logged results to disk ...")
     exp_manager.save_to_disc(user_configs["OUTPUT_CONFIGS"]["RESULT_LOG_PATH"], exp_config[:-5])
+    
+    # Save the final model state to disk
+    print("Saving final model parameters ...")
+    param_ndarrays: List[np.ndarray] = fl.common.parameters_to_ndarrays(custom_server.parameters)
+    np.savez(user_configs["OUTPUT_CONFIGS"]["RESULT_LOG_PATH"] + f"weights-{exp_config[:-5]}.npz", *param_ndarrays)
 
     if user_configs["OUTPUT_CONFIGS"]["WANDB_LOGGING"]:
+        print("Logging results to WANDB service ...")
         log_to_wandb(user_configs=user_configs, experiment_manager=exp_manager, experiment_name=exp_config)
+    
+    print(f"Finished federated experiment {exp_config} ...\n")
 
 if __name__ == "__main__":
     main()

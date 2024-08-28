@@ -1,5 +1,7 @@
 """Module containing functions for data spliting among clients."""
 
+from typing import Callable, Optional, Union
+
 import torch
 import numpy as np
 from torch.utils.data import Dataset
@@ -24,22 +26,49 @@ class CustomDataset(Dataset):
     Create a dataset with given data and labels
 
     Arguments:
-        dataset (Dataset): The whole Dataset
-        labels(sequence) : targets as required for the indices. 
-                                will be the same length as indices
+        data (data): The data samples of the desired dataset.
+        labels(sequence) : The respective labels of the provided data samples. 
     """
-    def __init__(self, dataset, labels):
-        self.dataset = dataset
-        self.targets = torch.tensor(labels.copy()).long()
+    def __init__(
+            self,
+            data: Union[list, np.ndarray, torch.Tensor], 
+            targets: Union[list, np.ndarray, torch.Tensor], 
+            transform: Optional[Callable] = None,
+            target_transform: Optional[Callable] = None,
+        ):
+        self.data = data
+        if not torch.is_tensor(self.data):
+            self.data = torch.tensor(self.data)
+        self.data = self.data.float()
 
-    def __getitem__(self, idx):
-        data = self.dataset[idx][0]
-        target = self.targets[idx]
-        return (data, target)
+        self.targets = targets
+        if not torch.is_tensor(self.targets):
+            self.targets = torch.tensor(self.targets)
+        self.targets = self.targets.long()
+        
+        # original labels
+        self.oTargets = self.targets.detach().clone()
+
+        self.transform = transform
+        self.target_transform = target_transform
+
+    def __getitem__(self, index):
+        sample, target = self.data[index], self.targets[index]
+
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        #img = Image.fromarray(sample)
+
+        if self.transform is not None:
+            sample = self.transform(sample)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return sample, target
 
     def __len__(self):
         return len(self.targets)
-
 
 class CustomSubset(Dataset):
     r"""
@@ -54,6 +83,11 @@ class CustomSubset(Dataset):
     def __init__(self, dataset, indices, labels=None):
         self.dataset = dataset
         self.indices = indices
+
+        # Extract data from provided dataset
+        self.data = self.dataset[self.indices][0]
+        
+        # Setup data targets
         if labels is None:
             if hasattr(self.dataset, 'targets'):
                 targets = np.array(self.dataset.targets)[indices]
@@ -71,7 +105,8 @@ class CustomSubset(Dataset):
         self.oTargets = self.targets.detach().clone()
    
     def __getitem__(self, idx):
-        data = self.dataset[self.indices[idx]][0]
+        #data = self.dataset[self.indices[idx]][0]
+        data = self.data[idx]
         target = self.targets[idx]
         return (data, target)
 
@@ -81,6 +116,33 @@ class CustomSubset(Dataset):
     def setTargets(self, labels):
         self.targets = torch.tensor(labels).long()   
 
+def split_with_replacement(labels, n_workers, n_data, classes_per_worker):
+    if isinstance(labels, torch.Tensor):
+        labels = labels.numpy()
+    
+    n_classes = np.max(labels) + 1
+    # get label indcs
+    label_idcs = {l : np.random.permutation(
+        np.argwhere(np.array(labels)==l).flatten()
+        ).tolist() for l in range(n_classes) }
+    
+    classes_per_worker = n_classes if classes_per_worker == 0 else classes_per_worker
+
+    idcs = []
+    for i in range(n_workers):
+        worker_idcs = []
+        budget = n_data
+        c = np.random.randint(n_classes)
+        while budget > 0:
+            take = min(n_data // classes_per_worker, budget)
+            worker_idcs.append(np.random.choice(label_idcs[c], take))
+            budget -= take
+            c = (c + 1) % n_classes
+        idcs += [np.hstack(worker_idcs)]
+    
+    # print_split(idcs, labels)
+    
+    return idcs
 
 def uneven_split(labels, n_workers, n_data, classes_per_worker):
     """Function to make uneven splits of given dataset for each worker as defined."""
@@ -177,7 +239,13 @@ def split_data(
     if not worker_data:
         subset_idx = split_dirichlet(train_data.targets, n_clients, dirichlet_alpha)
     else:
-        subset_idx = uneven_split(train_data.targets, n_clients, worker_data, classes_per_worker)
+        # if a list is not provided we
+        # want to split data in equal chunks
+        # of 
+        if isinstance(worker_data, int):
+            subset_idx = split_with_replacement(train_data.targets, n_clients, worker_data, classes_per_worker)
+        else:
+            subset_idx = uneven_split(train_data.targets, n_clients, worker_data, classes_per_worker)
     
     # Compute labels per worker
     label_counts = [np.bincount(np.array(train_data.targets)[i], minlength=10) for i in subset_idx]

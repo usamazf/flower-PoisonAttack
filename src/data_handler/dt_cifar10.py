@@ -10,10 +10,11 @@ def load_cifar10(data_root, download) -> Tuple[torchvision.datasets.VisionDatase
     """Load CIFAR-10 (training and test set)."""
     
     # Define the transform for the data.
-    transform = transforms.Compose(
-        [transforms.ToTensor(), 
-         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
-    )
+    transform = None
+    # transform = transforms.Compose([
+    #     # transforms.ToTensor(),
+    #     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    # ])
     
     # Initialize Datasets. CIFAR-10 will automatically download if not present
     trainset = torchvision.datasets.CIFAR10(

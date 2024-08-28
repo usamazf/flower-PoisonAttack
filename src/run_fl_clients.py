@@ -1,5 +1,7 @@
+"""Module to run FL clients of various types."""
 from multiprocessing import Process
 
+from typing import Optional
 import argparse
 
 import torch
@@ -13,7 +15,7 @@ import data_handler
 def client_runner(
         client_id: int,
         total_clients: int,
-        client_type: str,
+        client_type: Optional[str],
         config_file: str,
         server_address: str,
         max_gpus: int,

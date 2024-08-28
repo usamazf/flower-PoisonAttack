@@ -54,7 +54,7 @@ class Malicious_IntermediateRandomUpdate(HonestClient):
         # Don't perform attack until specific round, even
         # then perform with a specified probability.
         server_round = int(ins.config["server_round"])
-        attack = np.random.random() >= self.attack_config["ATTACK_RATIO"]
+        attack = np.random.random() >= self.attack_config["IRAND_CONFIG"]["ATTACK_RATIO"]
         if (server_round < self.attack_config["ATTACK_ROUND"]) or not attack:
             return super().fit(ins=ins)
 

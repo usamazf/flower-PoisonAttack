@@ -11,7 +11,7 @@ def create_server(
     ):
     """Function to create the appropriat FL server instance."""
     
-    assert server_type in ["NORMAL"], f"Invalid server {server_type} requested."
+    assert server_type in ["NORMAL", "FILTER"], f"Invalid server {server_type} requested."
 
     if server_type == "NORMAL":
         from .servers.normal_server import NormalServer

@@ -1,8 +1,10 @@
 """A function to create desired type of FL server."""
+from typing import Optional
+
 from flwr.client import Client
 
 def create_client(
-        client_type: str,
+        client_type: Optional[str],
         client_id: int,
         local_model,
         trainset,
@@ -12,9 +14,9 @@ def create_client(
     ) -> Client:
     """Function to create the appropriat FL server instance."""
     
-    assert client_type in ["HONEST", "RAND", "IRAND", "MPAF", "FLIP"], f"Invalid server {client_type} requested."
+    assert client_type in [None, "HONEST", "RAND", "IRAND", "MPAF", "FLIP", "BACK"], f"Invalid server {client_type} requested."
 
-    if client_type == "HONEST":
+    if (client_type == "HONEST") or (client_type is None):
         from .clients.honest_client import HonestClient
         return HonestClient(
             client_id=client_id,
@@ -56,6 +58,16 @@ def create_client(
     elif client_type == "FLIP":
         from .clients.malicious_flip import Malicious_LabelFlip
         return Malicious_LabelFlip(
+            client_id=client_id,
+            local_model=local_model,
+            trainset=trainset,
+            testset=testset,
+            device=device,
+            attack_config = configs["MAL_HYPER_PARAM"],
+        )
+    elif client_type == "BACK":
+        from .clients.malicious_backdoor import Malicious_Backdoor
+        return Malicious_Backdoor(
             client_id=client_id,
             local_model=local_model,
             trainset=trainset,
