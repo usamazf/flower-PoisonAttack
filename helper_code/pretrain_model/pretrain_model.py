@@ -20,7 +20,7 @@ sys.path.append(os.path.abspath("src"))
 
 import models
 import configs
-import datasets
+import data_handler
 import modules
 
 def mainpulate_data(tr_data, ts_data, change_params):
@@ -29,20 +29,14 @@ def mainpulate_data(tr_data, ts_data, change_params):
     ts_mal_data = copy.deepcopy(ts_data)
     
     for item in change_params:
-        tr_mal_data.targets[tr_data.targets == item["SOURCE_LABEL"]] = item["TARGET_LABEL"]
-        ts_mal_data.targets[ts_data.targets == item["SOURCE_LABEL"]] = item["TARGET_LABEL"]
+        tr_mal_data.targets[tr_data.oTargets == item["SOURCE_LABEL"]] = item["TARGET_LABEL"]
+        ts_mal_data.targets[ts_data.oTargets == item["SOURCE_LABEL"]] = item["TARGET_LABEL"]
     
     return tr_mal_data, ts_mal_data
 
 def pretrain_model():
     """Routine to train the model based on some sort of malicious data."""
     parser = argparse.ArgumentParser(description="Flower")
-    parser.add_argument(
-        "--save_path",
-        type=str,
-        default="temp/mal_weights/malicious_model.pt",
-        help="Save path for trained model (default: temp/mal_weights/malicious_model.pt)",
-    )
     parser.add_argument(
         "--config_file",
         type = str,
@@ -61,9 +55,10 @@ def pretrain_model():
     model = models.load_model(model_configs=pretrain_configs["MODEL_CONFIGS"])
     model.to(local_device)
     
-    train_data, test_data = datasets.load_data(
+    train_data, test_data = data_handler.load_data(
         dataset_name=pretrain_configs["DATASET_CONFIGS"]["DATASET_NAME"], 
         dataset_path=pretrain_configs["DATASET_CONFIGS"]["DATASET_PATH"],
+        dataset_down=pretrain_configs["DATASET_CONFIGS"]["DATASET_DOWN"]
     )
     
     # manipulate the data
@@ -117,8 +112,8 @@ def pretrain_model():
     pretrained_param = model.get_weights()
     
     # save the trained model to disk
-    os.makedirs(f"{os.path.dirname(args.save_path)}", exist_ok=True)
-    torch.save(pretrained_param, args.save_path)
+    os.makedirs(os.path.dirname(pretrain_configs["SAVE_PATH"]), exist_ok=True)
+    torch.save(pretrained_param, pretrain_configs["SAVE_PATH"])
     
 
 if __name__ == '__main__':
